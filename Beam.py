@@ -1,11 +1,10 @@
-# app.py
 import streamlit as st
 import math
-import matplotlib.pyplot as plt
+import plotly.graph_objects as go
 
-st.set_page_config(page_title="RC Beam Design (ACI 318)", layout="centered")
+st.set_page_config(page_title="RC Beam Design", layout="centered")
 
-st.title("🏗️ RC Beam Design + Reinforcement (ACI 318 / มยผ.)")
+st.title("🏗️ RC Beam Design (ACI 318 / มยผ.)")
 
 # ------------------------
 # MATERIAL
@@ -21,7 +20,7 @@ st.sidebar.header("Load")
 D = st.sidebar.number_input("Dead Load (kN/m)", value=5.0)
 L = st.sidebar.number_input("Live Load (kN/m)", value=3.0)
 
-wu = 1.2*D + 1.6*L
+wu = 1.2 * D + 1.6 * L
 
 # ------------------------
 # BEAM INPUT
@@ -33,10 +32,10 @@ b = st.number_input("Width b (mm)", value=250.0)
 h = st.number_input("Height h (mm)", value=500.0)
 cover = st.number_input("Cover (mm)", value=40.0)
 
-d = h - cover - 10  # approx (assume bar ~20mm)
+d = h - cover - 10  # approx
 
 # ------------------------
-# REBAR DATABASE
+# REBAR DB
 # ------------------------
 rebar_db = {
     "DB12": 113,
@@ -53,10 +52,9 @@ rebar_db = {
 if st.button("ออกแบบคาน"):
     Mu = wu * L_beam**2 / 8  # kN-m
     Mu_Nmm = Mu * 1e6
-
     phi = 0.9
 
-    # iterative As
+    # iterate As
     As = 100
     for _ in range(50):
         a = (As * fy) / (0.85 * fc * b)
@@ -64,15 +62,13 @@ if st.button("ออกแบบคาน"):
         phiMn = phi * Mn
         As = As * (Mu_Nmm / phiMn)
 
-    st.subheader("📊 Design Results")
+    st.subheader("📊 ผลลัพธ์")
     st.write(f"Mu = {Mu:.2f} kN·m")
     st.write(f"As required = {As:.2f} mm²")
 
     # ------------------------
     # SELECT REBAR
     # ------------------------
-    st.subheader("🔩 เลือกเหล็กเสริม")
-
     selected = None
 
     for name, area in rebar_db.items():
@@ -90,30 +86,40 @@ if st.button("ออกแบบคาน"):
         st.error("❌ ต้องเพิ่มขนาดคาน")
 
     # ------------------------
-    # DRAW SECTION
+    # DRAW (PLOTLY)
     # ------------------------
     st.subheader("📐 หน้าตัดคาน")
 
-    fig, ax = plt.subplots()
+    fig = go.Figure()
 
-    # draw beam
-    ax.add_patch(plt.Rectangle((0,0), b, h, fill=False))
+    # beam rectangle
+    fig.add_shape(
+        type="rect",
+        x0=0, y0=0,
+        x1=b, y1=h,
+        line=dict(width=2)
+    )
 
     # draw bars
     if selected:
         spacing = b / (qty + 1)
         for i in range(qty):
-            x = spacing * (i+1)
+            x = spacing * (i + 1)
             y = cover
-            circle = plt.Circle((x, y), 10, fill=False)
-            ax.add_patch(circle)
 
-    ax.set_xlim(0, b)
-    ax.set_ylim(0, h)
-    ax.set_aspect('equal')
+            fig.add_shape(
+                type="circle",
+                x0=x-10, y0=y-10,
+                x1=x+10, y1=y+10,
+                line=dict(width=2)
+            )
 
-    ax.set_title("Beam Section")
-    ax.set_xlabel("mm")
-    ax.set_ylabel("mm")
+    fig.update_layout(
+        width=400,
+        height=500,
+        xaxis=dict(range=[0, b], title="mm"),
+        yaxis=dict(range=[0, h], title="mm"),
+        showlegend=False
+    )
 
-    st.pyplot(fig)
+    st.plotly_chart(fig)
